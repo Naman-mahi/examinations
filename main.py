@@ -15,6 +15,7 @@ QA_MODELS = {
 GEN_MODELS = {
     "GPT-2 (gpt2)": "gpt2",
     "Falcon 7B Instruct (tiiuae/falcon-7b-instruct)": "tiiuae/falcon-7b-instruct",
+    # FLAN-T5 is supported only with text2text-generation pipeline.
     "FLAN-T5 Base (google/flan-t5-base)": "google/flan-t5-base",
 }
 
@@ -61,7 +62,11 @@ if tabs == "Settings":
 @st.cache_resource(show_spinner="Loading AI models...")
 def load_pipelines(qa_model_name, gen_model_name):
     qa = pipeline("question-answering", model=qa_model_name)
-    gen = pipeline("text-generation", model=gen_model_name)
+    # Use text2text-generation for FLAN-T5, else text-generation
+    if "flan-t5" in gen_model_name:
+        gen = pipeline("text2text-generation", model=gen_model_name)
+    else:
+        gen = pipeline("text-generation", model=gen_model_name)
     return qa, gen
 
 qa_pipeline, generator = load_pipelines(st.session_state.qa_model, st.session_state.gen_model)
@@ -73,14 +78,17 @@ if tabs == "Home":
     st.header("Welcome to RRB NTPC Exam Prep AI")
     st.markdown("""
     This free AI-powered app helps you prepare for the RRB NTPC exams (CBT 1 & CBT 2).
+
     **Features**:
     - Upload previous year question paper PDFs to get answers.
     - Generate practice questions for Mathematics, Reasoning, and General Awareness.
     - Chat with the AI for explanations or additional questions.
+
     **Syllabus**:
     - **Mathematics**: Number System, Percentages, Profit/Loss, Time & Work, etc.
     - **General Intelligence & Reasoning**: Analogies, Coding-Decoding, Puzzles, etc.
     - **General Awareness**: Indian Railways, Current Affairs, History, Geography, etc.
+
     **Instructions**:
     - Use the sidebar to navigate.
     - Upload clear, text-based PDFs for accurate question extraction.
@@ -123,7 +131,7 @@ elif tabs == "Upload Question Paper":
                         with st.spinner("Generating explanation..."):
                             explanation = generator(
                                 explanation_prompt,
-                                max_length=150,
+                                max_new_tokens=150,
                                 num_return_sequences=1,
                                 truncation=True,
                                 pad_token_id=generator.tokenizer.eos_token_id if hasattr(generator, 'tokenizer') else None
@@ -153,7 +161,7 @@ elif tabs == "Generate Practice Questions":
             with st.spinner("Generating questions..."):
                 questions = generator(
                     prompt,
-                    max_length=500,
+                    max_new_tokens=256,
                     num_return_sequences=1,
                     truncation=True,
                     pad_token_id=generator.tokenizer.eos_token_id if hasattr(generator, 'tokenizer') else None
@@ -212,7 +220,7 @@ elif tabs == "Chat with AI":
             with st.spinner("Generating explanation..."):
                 explanation = generator(
                     explanation_prompt,
-                    max_length=150,
+                    max_new_tokens=150,
                     num_return_sequences=1,
                     truncation=True,
                     pad_token_id=generator.tokenizer.eos_token_id if hasattr(generator, 'tokenizer') else None

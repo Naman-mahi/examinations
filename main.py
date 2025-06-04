@@ -2,6 +2,13 @@ import streamlit as st
 import PyPDF2
 from transformers import pipeline
 import os
+import sys
+
+# Workaround for Streamlit/PyTorch watcher bug
+if 'torch' in sys.modules:
+    import torch
+    if hasattr(torch, 'classes'):
+        _ = getattr(torch, 'classes')
 
 # Initialize Hugging Face pipelines
 try:
@@ -90,7 +97,7 @@ elif page == "Generate Practice Questions":
     subject = st.selectbox("Select Subject", ["Mathematics", "General Intelligence & Reasoning", "General Awareness"])
     topic = st.text_input("Enter Topic (e.g., Percentages, Coding-Decoding, Indian Railways)")
     num_questions = st.slider("Number of Questions", 1, 10, 5)
-    
+
     if st.button("Generate Questions"):
         if topic:
             # Create prompt for question generation

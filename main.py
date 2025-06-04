@@ -3,6 +3,9 @@ import PyPDF2
 from transformers import pipeline
 import os
 
+# Set Streamlit page config FIRST!
+st.set_page_config(page_title="RRB NTPC Exam Prep AI", layout="wide")
+
 # --- Model choices ---
 QA_MODELS = {
     "DistilBERT (distilbert-base-uncased-distilled-squad)": "distilbert-base-uncased-distilled-squad",
@@ -63,12 +66,7 @@ def load_pipelines(qa_model_name, gen_model_name):
 
 qa_pipeline, generator = load_pipelines(st.session_state.qa_model, st.session_state.gen_model)
 
-# Streamlit app configuration
-st.set_page_config(page_title="RRB NTPC Exam Prep AI", layout="wide")
 st.title("RRB NTPC Exam Preparation AI Agent")
-
-# Sidebar for navigation (redundant because tabs are used, but kept for your layout)
-# st.sidebar.title("Navigation")
 
 # Home page: Display syllabus and instructions
 if tabs == "Home":
@@ -115,7 +113,7 @@ elif tabs == "Upload Question Paper":
                 # Input question to answer based on extracted text
                 question = st.text_input("Enter a question from the paper (e.g., 'What is the LCM of 12, 15, and 20?')")
                 if question:
-                    # Use DistilBERT to answer the question
+                    # Use QA pipeline to answer the question
                     result = qa_pipeline(question=question, context=text)
                     st.markdown(f"**Answer**: {result['answer']} (Confidence: {result['score']:.2f})")
                     
@@ -191,7 +189,7 @@ elif tabs == "Chat with AI":
     # Input new question
     user_question = st.text_input("Ask a question or request an explanation (e.g., 'Explain how to solve LCM questions' or 'What is the longest railway platform in India?')")
     if user_question:
-        # Use DistilBERT for answering
+        # Use QA pipeline for answering
         context = (
             "RRB NTPC exam preparation context: Covers Mathematics (LCM, Percentages, etc.), "
             "General Intelligence & Reasoning (Coding-Decoding, Puzzles), "

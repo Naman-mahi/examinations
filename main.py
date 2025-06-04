@@ -3,7 +3,6 @@ import PyPDF2
 from transformers import pipeline
 import os
 
-# Set Streamlit page config FIRST!
 st.set_page_config(page_title="RRB NTPC Exam Prep AI", layout="wide")
 
 # --- Model choices ---
@@ -15,17 +14,13 @@ QA_MODELS = {
 GEN_MODELS = {
     "GPT-2 (gpt2)": "gpt2",
     "Falcon 7B Instruct (tiiuae/falcon-7b-instruct)": "tiiuae/falcon-7b-instruct",
-    "Llama 2 7B Chat (meta-llama/Llama-2-7b-chat-hf)": "meta-llama/Llama-2-7b-chat-hf",
-    # You can add more Llama models from Hugging Face if needed
 }
 
-# --- Settings State ---
 if "qa_model" not in st.session_state:
     st.session_state.qa_model = list(QA_MODELS.values())[0]
 if "gen_model" not in st.session_state:
     st.session_state.gen_model = list(GEN_MODELS.values())[0]
 
-# --- Sidebar with Settings tab ---
 tabs = st.sidebar.radio("Menu", ["Home", "Upload Question Paper", "Generate Practice Questions", "Chat with AI", "Settings"])
 if tabs == "Settings":
     st.header("AI Model Settings")
@@ -58,11 +53,9 @@ if tabs == "Settings":
         st.write(f"- `{v}` ({k})")
     st.stop()
 
-# --- Load models based on settings ---
 @st.cache_resource(show_spinner="Loading AI models...")
 def load_pipelines(qa_model_name, gen_model_name):
     qa = pipeline("question-answering", model=qa_model_name)
-    # Use text-generation for Llama, Falcon, GPT-2, etc.
     gen = pipeline("text-generation", model=gen_model_name)
     return qa, gen
 
@@ -70,7 +63,6 @@ qa_pipeline, generator = load_pipelines(st.session_state.qa_model, st.session_st
 
 st.title("RRB NTPC Exam Preparation AI Agent")
 
-# Home page: Display syllabus and instructions
 if tabs == "Home":
     st.header("Welcome to RRB NTPC Exam Prep AI")
     st.markdown("""
@@ -92,37 +84,26 @@ if tabs == "Home":
     - Input questions clearly in the Chat section for best results.
     """)
 
-# Upload Question Paper: Extract and answer questions from PDFs
 elif tabs == "Upload Question Paper":
     st.header("Upload Previous Year Question Paper")
     uploaded_file = st.file_uploader("Upload a PDF question paper", type=["pdf"])
-    
     if uploaded_file:
-        # Save uploaded PDF temporarily
         try:
             with open("temp.pdf", "wb") as f:
                 f.write(uploaded_file.getbuffer())
-            
-            # Extract text from PDF
             pdf_reader = PyPDF2.PdfReader("temp.pdf")
             text = ""
             for page in pdf_reader.pages:
                 extracted = page.extract_text()
                 if extracted:
                     text += extracted + "\n"
-            
             if text.strip():
                 st.subheader("Extracted Text from PDF")
                 st.text_area("PDF Content", text, height=200)
-                
-                # Input question to answer based on extracted text
                 question = st.text_input("Enter a question from the paper (e.g., 'What is the LCM of 12, 15, and 20?')")
                 if question:
-                    # Use QA pipeline to answer the question
                     result = qa_pipeline(question=question, context=text)
                     st.markdown(f"**Answer**: {result['answer']} (Confidence: {result['score']:.2f})")
-                    
-                    # Offer explanation
                     if st.button("Explain this answer"):
                         explanation_prompt = f"Explain how to solve this question: {question} Answer: {result['answer']}"
                         with st.spinner("Generating explanation..."):
@@ -136,24 +117,18 @@ elif tabs == "Upload Question Paper":
                         st.markdown(f"**Explanation**: {explanation}")
             else:
                 st.warning("No text extracted from PDF. Ensure the PDF is text-based, not scanned.")
-            
-            # Clean up temporary file
             if os.path.exists("temp.pdf"):
                 os.remove("temp.pdf")
-                
         except Exception as e:
             st.error(f"Error processing PDF: {e}")
 
-# Generate Practice Questions: Create syllabus-based questions
 elif tabs == "Generate Practice Questions":
     st.header("Generate Practice Questions")
     subject = st.selectbox("Select Subject", ["Mathematics", "General Intelligence & Reasoning", "General Awareness"])
     topic = st.text_input("Enter Topic (e.g., Percentages, Coding-Decoding, Indian Railways)")
     num_questions = st.slider("Number of Questions", 1, 10, 5)
-
     if st.button("Generate Questions"):
         if topic:
-            # Create prompt for question generation
             prompt = f"Generate {num_questions} RRB NTPC {subject} practice questions on {topic} with answers."
             with st.spinner("Generating questions..."):
                 questions = generator(
@@ -163,12 +138,8 @@ elif tabs == "Generate Practice Questions":
                     truncation=True,
                     pad_token_id=generator.tokenizer.eos_token_id if hasattr(generator, 'tokenizer') else None
                 )[0]['generated_text']
-            
-            # Display questions
             st.subheader("Generated Questions")
             st.markdown(questions)
-            
-            # Allow download of generated questions
             st.download_button(
                 label="Download Questions",
                 data=questions,
@@ -178,21 +149,16 @@ elif tabs == "Generate Practice Questions":
         else:
             st.warning("Please enter a topic to generate questions.")
 
-# Chat with AI: Interactive Q&A for explanations or additional queries
 elif tabs == "Chat with AI":
     st.header("Chat with AI for RRB NTPC Prep")
-
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
-
     for chat in st.session_state.chat_history:
         st.markdown(f"**You**: {chat['question']}")
         st.markdown(f"**AI**: {chat['answer']}")
-
     user_question = st.text_input("Ask a question or request an explanation (e.g., 'Explain how to solve LCM questions' or 'What is the longest railway platform in India?')")
     if user_question:
         with st.spinner("Processing your question..."):
-            # Use generator for open-ended chat
             response = generator(
                 user_question,
                 max_new_tokens=150,
@@ -200,12 +166,8 @@ elif tabs == "Chat with AI":
                 truncation=True,
                 pad_token_id=generator.tokenizer.eos_token_id if hasattr(generator, 'tokenizer') else None
             )[0]['generated_text']
-
         st.session_state.chat_history.append({"question": user_question, "answer": response})
         st.markdown(f"**You**: {user_question}")
         st.markdown(f"**AI**: {response}")
 
-        # Optionally, offer explanation using the same generator
-
-# Footer
 st.sidebar.markdown("Built with Streamlit and Hugging Face. Deploy locally or on Streamlit Community Cloud.")

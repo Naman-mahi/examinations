@@ -15,8 +15,8 @@ QA_MODELS = {
 GEN_MODELS = {
     "GPT-2 (gpt2)": "gpt2",
     "Falcon 7B Instruct (tiiuae/falcon-7b-instruct)": "tiiuae/falcon-7b-instruct",
-    # FLAN-T5 is supported only with text2text-generation pipeline.
-    "FLAN-T5 Base (google/flan-t5-base)": "google/flan-t5-base",
+    "Llama 2 7B Chat (meta-llama/Llama-2-7b-chat-hf)": "meta-llama/Llama-2-7b-chat-hf",
+    # You can add more Llama models from Hugging Face if needed
 }
 
 # --- Settings State ---
@@ -62,11 +62,8 @@ if tabs == "Settings":
 @st.cache_resource(show_spinner="Loading AI models...")
 def load_pipelines(qa_model_name, gen_model_name):
     qa = pipeline("question-answering", model=qa_model_name)
-    # Use text2text-generation for FLAN-T5, else text-generation
-    if "flan-t5" in gen_model_name:
-        gen = pipeline("text2text-generation", model=gen_model_name)
-    else:
-        gen = pipeline("text-generation", model=gen_model_name)
+    # Use text-generation for Llama, Falcon, GPT-2, etc.
+    gen = pipeline("text-generation", model=gen_model_name)
     return qa, gen
 
 qa_pipeline, generator = load_pipelines(st.session_state.qa_model, st.session_state.gen_model)
@@ -184,48 +181,31 @@ elif tabs == "Generate Practice Questions":
 # Chat with AI: Interactive Q&A for explanations or additional queries
 elif tabs == "Chat with AI":
     st.header("Chat with AI for RRB NTPC Prep")
-    
-    # Initialize chat history in session state
+
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
-    
-    # Display chat history
+
     for chat in st.session_state.chat_history:
         st.markdown(f"**You**: {chat['question']}")
         st.markdown(f"**AI**: {chat['answer']}")
-    
-    # Input new question
+
     user_question = st.text_input("Ask a question or request an explanation (e.g., 'Explain how to solve LCM questions' or 'What is the longest railway platform in India?')")
     if user_question:
-        # Use QA pipeline for answering
-        context = (
-            "RRB NTPC exam preparation context: Covers Mathematics (LCM, Percentages, etc.), "
-            "General Intelligence & Reasoning (Coding-Decoding, Puzzles), "
-            "General Awareness (Indian Railways, Current Affairs, History, Geography). Provide accurate answers."
-        )
         with st.spinner("Processing your question..."):
-            result = qa_pipeline(question=user_question, context=context)
-            answer = result['answer']
-        
-        # Append to chat history
-        st.session_state.chat_history.append({"question": user_question, "answer": answer})
-        
-        # Display latest response
+            # Use generator for open-ended chat
+            response = generator(
+                user_question,
+                max_new_tokens=150,
+                num_return_sequences=1,
+                truncation=True,
+                pad_token_id=generator.tokenizer.eos_token_id if hasattr(generator, 'tokenizer') else None
+            )[0]['generated_text']
+
+        st.session_state.chat_history.append({"question": user_question, "answer": response})
         st.markdown(f"**You**: {user_question}")
-        st.markdown(f"**AI**: {answer}")
-        
-        # Offer detailed explanation
-        if st.button("Explain this answer"):
-            explanation_prompt = f"Explain in detail: {user_question} Answer: {answer}"
-            with st.spinner("Generating explanation..."):
-                explanation = generator(
-                    explanation_prompt,
-                    max_new_tokens=150,
-                    num_return_sequences=1,
-                    truncation=True,
-                    pad_token_id=generator.tokenizer.eos_token_id if hasattr(generator, 'tokenizer') else None
-                )[0]['generated_text']
-            st.markdown(f"**Explanation**: {explanation}")
+        st.markdown(f"**AI**: {response}")
+
+        # Optionally, offer explanation using the same generator
 
 # Footer
 st.sidebar.markdown("Built with Streamlit and Hugging Face. Deploy locally or on Streamlit Community Cloud.")
